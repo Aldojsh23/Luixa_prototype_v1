@@ -1,64 +1,16 @@
 //Esta pantalla es para la creación de un nuevo usuario
 
 import React, { useState } from "react";
-import { StyleSheet, View, Text, FlatList, SafeAreaView, ScrollView } from 'react-native';
+import { 
+    StyleSheet, View, Text, FlatList, SafeAreaView, ScrollView 
+} from 'react-native';
 
-const Clientes_view = () => {
+import { supabase } from "../lib/supabase";
+import { getSession } from "../lib/session";
 
-    //Se definen los datos que se importan de la base de datos
-    const [clientesItems, setClientesItems] = useState([
-        { id: '1', nombre: 'Aldo Santamaria', alias: 'El aldo', telefono: '7491142375', date_create: '10/20/1999', estado_cliente: 'Tlaxcala' },
-    ]);
+const Clientes_view = ({ route }) => {
 
-    //Renderizado del encabezado de la tabla
-    const TableHeader = () => (
-        <View style={styles.headerRow}>
-            <Text style={styles.headerCell}>Nombre</Text>
-            <Text style={styles.headerCell}>Alias</Text>
-            <Text style={styles.headerCell}>Telefono</Text>
-            <Text style={styles.headerCell}>Fecha</Text>
-            <Text style={styles.headerCell}>Estado</Text>
-        </View>
-    );
-
-    const renderItem = ({ item }) => (
-        <View style={styles.row}>
-            <Text style={styles.cell}>{item.nombre}</Text>
-            <Text style={styles.cell}>{item.alias}</Text>
-            <Text style={styles.cell}>{item.telefono}</Text>
-            <Text style={styles.cell}>{item.date_create}</Text>
-            <Text style={styles.cell}>{item.estado_cliente}</Text>
-        </View>
-    );
-
-
-    return (
-
-        <SafeAreaView style={styles.container}>
-
-            <ScrollView  >
-                <ScrollView horizontal={true}>
-
-
-                    <View style={styles.tableContainer}>
-                        <TableHeader />
-                        <FlatList
-                            data={clientesItems}
-                            renderItem={renderItem}
-                            keyExtractor={item => item.id}
-                            nestedScrollEnabled={true} // Para permitir scroll dentro de ScrollView
-                            style={{ height: 300 }} // Evita problemas de renderizado
-                        />
-                    </View>
-                </ScrollView>
-
-            </ScrollView>
-
-        </SafeAreaView>
-    );
-
-
-
+    
 }
 
 const styles = StyleSheet.create({

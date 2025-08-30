@@ -10,6 +10,9 @@ import {
 } from "react-native";
 
 import { supabase } from "../lib/supabase";
+import bcrypt from 'bcryptjs'; // Asegúrate de instalarla con npm install bcryptjs
+import { saveSession, clearSession } from "../lib/session"; // Asegúrate que la ruta sea correcta
+
 
 export default function Login({ onLoginSuccess }) {
     const [email, setEmail] = useState("");
@@ -33,18 +36,15 @@ export default function Login({ onLoginSuccess }) {
 
         try {
             const { data, error } = await supabase
-                .from("proveedor")
+                .from("proveedores")
                 .select("*")
                 .eq("correo_proveedor", email.toLowerCase().trim())
+                
                 .single();
 
-            if (error) {
-                console.error("Error al buscar proveedor:", error);
-                if (error.code === 'PGRST116') {
-                    setErrorMsg("Correo no encontrado.");
-                } else {
-                    setErrorMsg("Error al conectarse a la base de datos.");
-                }
+            if (error || !data) {
+                await clearSession(); // Limpia sesión si hay error
+                setErrorMsg(error?.code === 'PGRST116' ? "Correo no encontrado." : "Error al conectarse a la base de datos.");
                 return;
             }
 
@@ -53,21 +53,32 @@ export default function Login({ onLoginSuccess }) {
                 return;
             }
 
-            if (data.contraseña_proveedor !== password) {
+            // Comprobación segura del hash
+            const passwordMatch = await bcrypt.compare(password, data.password_hash);
+
+            if (!passwordMatch) {
                 setErrorMsg("Contraseña incorrecta.");
                 return;
             }
 
-            // Si pasa las validaciones:
+            // Login exitoso
             console.log("Inicio de sesión exitoso:", data);
-            
-            // Limpiar campos después del login exitoso
+            await saveSession(data); // Guarda los datos del proveedor
+
+            //
+            console.log("Datos del proveedor:", {
+                id_proveedor: data.id_proveedor, // Verifica este campo
+                ...data
+            });
+            await saveSession(data);
+
             setEmail("");
             setPassword("");
             setErrorMsg("");
-            
             onLoginSuccess?.(data);
+
         } catch (err) {
+            await clearSession();
             console.error("Error inesperado:", err);
             setErrorMsg("Ocurrió un error inesperado. Intenta nuevamente.");
         } finally {
@@ -77,6 +88,8 @@ export default function Login({ onLoginSuccess }) {
 
     return (
         <View style={style.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#f1f1f1" />
+
             <Text style={style.Titulo}>Hola</Text>
             <Text style={style.Text}>Bienvenido a Luixa :)</Text>
 
@@ -101,8 +114,8 @@ export default function Login({ onLoginSuccess }) {
 
             {errorMsg ? <Text style={style.errorText}>{errorMsg}</Text> : null}
 
-            <TouchableOpacity 
-                style={[style.button, loading && style.buttonDisabled]} 
+            <TouchableOpacity
+                style={[style.button, loading && style.buttonDisabled]}
                 onPress={login}
                 disabled={loading}
             >
@@ -112,8 +125,6 @@ export default function Login({ onLoginSuccess }) {
                     <Text style={style.buttonText}>Iniciar sesión</Text>
                 )}
             </TouchableOpacity>
-
-            <StatusBar style="auto" />
         </View>
     );
 }

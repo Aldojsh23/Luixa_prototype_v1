@@ -18,7 +18,7 @@ import Clientes_agregar from "./Pantallas/Clientes_agregar";
 
 const HomeStackNavigator = createNativeStackNavigator();
 
-function Mystack({ userData }) {
+/*function Mystack({ userData }) {
     return (
         <HomeStackNavigator.Navigator>
             <HomeStackNavigator.Screen
@@ -31,7 +31,7 @@ function Mystack({ userData }) {
             />
         </HomeStackNavigator.Navigator>
     );
-}
+}*/
 
 const ClientesStack = createNativeStackNavigator();
 
@@ -39,7 +39,7 @@ function ClientesNavigator({ userData }) {
     return (
         <ClientesStack.Navigator>
             <ClientesStack.Screen
-                name="Clientes"
+                name="ClientesMain"
                 component={Clientes}
                 options={{ headerShown: false }}
             />
@@ -67,7 +67,7 @@ function ClientesNavigator({ userData }) {
 
 const Tab = createBottomTabNavigator();
 
-function Mytabs({ userData }) {
+function Mytabs({ userData, onLogout }) {
     return (
         <Tab.Navigator
             initialRouteName="Inicio"
@@ -85,7 +85,7 @@ function Mytabs({ userData }) {
                     headerShown: false,
                 }}
             >
-                {(props) => <Home_screen {...props} userData={userData} />}
+                {(props) => <Home_screen {...props} userData={userData} onLogout={onLogout} />}
             </Tab.Screen>
             <Tab.Screen
                 name="Pedidos"
@@ -97,7 +97,7 @@ function Mytabs({ userData }) {
                     headerShown: false,
                 }}
             >
-                {(props) => <Pedidos {...props} userData={userData} />}
+                {(props) => <Pedidos {...props} userData={userData} onLogout={onLogout} />}
             </Tab.Screen>
             <Tab.Screen
                 name="Clientes"
@@ -109,7 +109,7 @@ function Mytabs({ userData }) {
                     headerShown: false,
                 }}
             >
-                {(props) => <ClientesNavigator {...props} userData={userData} />}
+                {(props) => <ClientesNavigator {...props} userData={userData} onLogout={onLogout} />}
             </Tab.Screen>
             <Tab.Screen
                 name="Inventario"
@@ -121,15 +121,15 @@ function Mytabs({ userData }) {
                     headerShown: false,
                 }}
             >
-                {(props) => <Inventario {...props} userData={userData} />}
+                {(props) => <Inventario {...props} userData={userData} onLogout={onLogout} />}
             </Tab.Screen>
         </Tab.Navigator>
     );
 }
 
-// Recibe userData como prop y lo pasa a Mytabs
-export default function Navigation({ userData }) {
-    return <Mytabs userData={userData} />;
+// Recibe userData y onLogout como props y los pasa a Mytabs
+export default function Navigation({ userData, onLogout }) {
+    return <Mytabs userData={userData} onLogout={onLogout} />;
 }
 
 const styles = StyleSheet.create({

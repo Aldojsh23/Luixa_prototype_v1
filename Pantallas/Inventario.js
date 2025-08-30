@@ -1,155 +1,517 @@
-import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
-import { StyleSheet, View, TextInput, Text, FlatList, SafeAreaView, ScrollView } from 'react-native';
+import { useEffect, useState } from "react";
+import {
+    SafeAreaView, ScrollView, View, Text, TextInput,
+    FlatList, Button, TouchableOpacity, StyleSheet,
+    KeyboardAvoidingView, Platform, Alert, Dimensions
+} from "react-native";
+import { supabase } from "../lib/supabase";
+import { getSession } from "../lib/session";
 
+const { width } = Dimensions.get('window');
 
-const Inventario = () => {
+const Inventario = ({ route }) => {
+    const [proveedorId, setProveedorId] = useState(null);
+    const [productos, setProductos] = useState([]);
+    const [form, setForm] = useState({
+        id_producto: null,
+        nombre_producto: '',
+        cantidad_producto: '',
+        precio_producto: '',
+        talla_producto: '',
+        categoria_producto: ''
+    });
 
-    const [inventarioItems, setInventarioItems] = useState([
-        { id: '1', nombre: 'Producto A', cantidad: 25, precio: 19.99, talla: 'Grande', categoria: 'Electrónica' },
-        { id: '2', nombre: 'Producto B', cantidad: 15, precio: 29.99, categoria: 'Hogar' },
-        { id: '3', nombre: 'Producto C', cantidad: 8, precio: 49.99, categoria: 'Electrónica' },
-        { id: '4', nombre: 'Producto D', cantidad: 32, precio: 9.99, categoria: 'Oficina' },
-        { id: '5', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '6', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '7', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '8', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '9', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '10', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '11', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '12', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '13', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '14', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '15', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '16', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
-        { id: '17', nombre: 'Producto E', cantidad: 12, precio: 39.99, categoria: 'Hogar' },
+    // Cargar sesión al montar el componente
+    useEffect(() => {
+        const loadSession = async () => {
+            const session = await getSession();
+            console.log("Sesión recuperada:", session);
 
+            if (session?.id) {
+                setProveedorId(session.id);
+            } else if (route.params?.id_proveedor) {
+                setProveedorId(route.params.id_proveedor);
+            } else {
+                console.error("No se encontró ID de proveedor");
+                Alert.alert("Error", "No se pudo identificar al proveedor");
+            }
+        };
+        loadSession();
+    }, []);
 
-    ]);
+    // Obtener productos cuando proveedorId cambie
+    useEffect(() => {
+        if (proveedorId) {
+            obtenerProductos();
+        }
+    }, [proveedorId]);
 
-    // Renderizado del encabezado de la tabla
-    const TableHeader = () => (
-        <View style={styles.headerRow}>
-            <Text style={styles.headerCell}>Nombre</Text>
-            <Text style={styles.headerCell}>Cantidad</Text>
-            <Text style={styles.headerCell}>Precio</Text>
-            <Text style={styles.headerCell}>Talla</Text>
-            <Text style={styles.headerCell}>Color</Text>
-        </View>
-    );
+    const obtenerProductos = async () => {
+        console.log("Obteniendo productos para proveedor:", proveedorId);
+        const { data, error } = await supabase
+            .from("producto")
+            .select("*")
+            .eq("id_proveedor", proveedorId);
 
+        if (error) {
+            console.error("Error al obtener productos:", error.message);
+            Alert.alert("Error", "No se pudieron cargar los productos");
+        } else {
+            setProductos(data);
+        }
+    };
 
-    const renderItem = ({ item }) => (
-        <View style={styles.row}>
-            <Text style={styles.cell}>{item.nombre}</Text>
-            <Text style={[styles.cell, styles.centeredCell]}>{item.cantidad}</Text>
-            <Text style={[styles.cell, styles.centeredCell]}>€{item.precio}</Text>
-            <Text style={styles.cell}>{item.talla}</Text>
-            <Text style={styles.cell}>{item.categoria}</Text>
+    const limpiarFormulario = () => {
+        setForm({
+            id_producto: null,
+            nombre_producto: '',
+            cantidad_producto: '',
+            precio_producto: '',
+            talla_producto: '',
+            categoria_producto: ''
+        });
+    };
+
+    const validarFormulario = () => {
+        if (!form.nombre_producto.trim()) {
+            Alert.alert("Error", "El nombre del producto es obligatorio");
+            return false;
+        }
+        if (!form.cantidad_producto || isNaN(form.cantidad_producto) || parseInt(form.cantidad_producto) < 0) {
+            Alert.alert("Error", "La cantidad debe ser un número válido");
+            return false;
+        }
+        if (!form.precio_producto || isNaN(form.precio_producto) || parseFloat(form.precio_producto) < 0) {
+            Alert.alert("Error", "El precio debe ser un número válido");
+            return false;
+        }
+
+        if (!form.talla_producto.trim()) {
+            Alert.alert("Error", "La talla del producto es obligatoria");
+            return false;
+        }
+
+        if (!form.categoria_producto.trim()) {
+            Alert.alert("Error", "La categoria del producto es obligatoria");
+            return false;
+        }
+
+        return true;
+    };
+
+    const agregarOActualizarProducto = async () => {
+        if (!validarFormulario()) return;
+
+        const nuevoProducto = {
+            nombre_producto: form.nombre_producto.trim(),
+            cantidad_producto: parseInt(form.cantidad_producto),
+            precio_producto: parseFloat(form.precio_producto),
+            talla_producto: form.talla_producto.trim(),
+            categoria_producto: form.categoria_producto.trim(),
+            id_proveedor: proveedorId,
+        };
+
+        try {
+            if (form.id_producto) {
+                const { error } = await supabase
+                    .from("producto")
+                    .update(nuevoProducto)
+                    .eq("id_producto", form.id_producto);
+
+                if (error) throw error;
+                Alert.alert("Éxito", "Producto actualizado correctamente");
+            } else {
+                const { error } = await supabase
+                    .from("producto")
+                    .insert(nuevoProducto);
+
+                if (error) throw error;
+                Alert.alert("Éxito", "Producto agregado correctamente");
+            }
+
+            await obtenerProductos();
+            limpiarFormulario();
+        } catch (error) {
+            console.error("Error al guardar producto:", error.message);
+            Alert.alert("Error", "No se pudo guardar el producto");
+        }
+    };
+
+    const eliminarProducto = async (id_producto) => {
+        Alert.alert(
+            "Confirmar eliminación",
+            "¿Estás seguro de que deseas eliminar este producto?",
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Eliminar",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase
+                                .from("producto")
+                                .delete()
+                                .eq("id_producto", id_producto);
+
+                            if (error) throw error;
+                            Alert.alert("Éxito", "Producto eliminado correctamente");
+                            await obtenerProductos();
+                        } catch (error) {
+                            console.error("Error al eliminar producto:", error.message);
+                            Alert.alert("Error", "No se pudo eliminar el producto");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const editarProducto = (producto) => {
+        setForm({
+            id_producto: producto.id_producto,
+            nombre_producto: producto.nombre_producto,
+            cantidad_producto: producto.cantidad_producto.toString(),
+            precio_producto: producto.precio_producto.toString(),
+            talla_producto: producto.talla_producto,
+            categoria_producto: producto.categoria_producto
+        });
+    };
+
+    const ProductCard = ({ item }) => (
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <Text style={styles.productName}>{item.nombre_producto}</Text>
+                <View style={styles.actionButtons}>
+                    <TouchableOpacity 
+                        style={styles.editButton} 
+                        onPress={() => editarProducto(item)}
+                    >
+                        <Text style={styles.editButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={styles.deleteButton} 
+                        onPress={() => eliminarProducto(item.id_producto)}
+                    >
+                        <Text style={styles.deleteButtonText}>Eliminar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+            
+            <View style={styles.cardContent}>
+                <View style={styles.infoRow}>
+                    <Text style={styles.label}>Cantidad:</Text>
+                    <Text style={styles.value}>{item.cantidad_producto}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                    <Text style={styles.label}>Precio:</Text>
+                    <Text style={styles.value}>${item.precio_producto}</Text>
+                </View>
+                
+                {item.talla_producto && (
+                    <View style={styles.infoRow}>
+                        <Text style={styles.label}>Talla:</Text>
+                        <Text style={styles.value}>{item.talla_producto}</Text>
+                    </View>
+                )}
+                
+                {item.categoria_producto && (
+                    <View style={styles.infoRow}>
+                        <Text style={styles.label}>Categoría:</Text>
+                        <Text style={styles.value}>{item.categoria_producto}</Text>
+                    </View>
+                )}
+            </View>
         </View>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView>
-                <StatusBar backgroundColor="#f0f0f0" />
+        <KeyboardAvoidingView 
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <SafeAreaView style={styles.container}>
+                <ScrollView 
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <Text style={styles.title}>Inventario</Text>
 
-                <Text style={styles.title}>Inventario</Text>
-
-                {/* Scroll lateral solo para la tabla */}
-                <ScrollView horizontal={true} style={styles.tableContainer}>
-                    <View>
-                        <TableHeader />
+                    {productos.length > 0 ? (
                         <FlatList
-                            data={inventarioItems}
-                            renderItem={renderItem}
-                            keyExtractor={item => item.id}
-                            nestedScrollEnabled={true} // Para permitir scroll dentro de ScrollView
-                            style={{ height: 300 }} // Evita problemas de renderizado
+                            data={productos}
+                            renderItem={({ item }) => <ProductCard item={item} />}
+                            keyExtractor={(item) => item.id_producto.toString()}
+                            style={styles.productsList}
+                            showsVerticalScrollIndicator={false}
+                            scrollEnabled={false} // Deshabilitamos el scroll interno para que funcione el scroll principal
                         />
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyStateText}>No hay productos registrados</Text>
+                        </View>
+                    )}
+
+                    <View style={styles.formContainer}>
+                        <Text style={styles.formTitle}>
+                            {form.id_producto ? "Editar Producto" : "Agregar Producto"}
+                        </Text>
+
+                        <TextInput 
+                            style={styles.textInput} 
+                            placeholder="Nombre del producto *" 
+                            value={form.nombre_producto} 
+                            onChangeText={text => setForm({ ...form, nombre_producto: text })}
+                            placeholderTextColor="#999"
+                        />
+                        
+                        <TextInput 
+                            style={styles.textInput} 
+                            placeholder="Cantidad *" 
+                            value={form.cantidad_producto} 
+                            keyboardType="numeric" 
+                            onChangeText={text => setForm({ ...form, cantidad_producto: text })}
+                            placeholderTextColor="#999"
+                        />
+
+                        <TextInput 
+                            style={styles.textInput} 
+                            placeholder="Precio *" 
+                            value={form.precio_producto} 
+                            keyboardType="decimal-pad" 
+                            onChangeText={text => setForm({ ...form, precio_producto: text })}
+                            placeholderTextColor="#999"
+                        />
+                        
+                         
+                        <TextInput 
+                            style={styles.textInput} 
+                            placeholder="Talla*" 
+                            value={form.talla_producto} 
+                            onChangeText={text => setForm({ ...form, talla_producto: text })}
+                            placeholderTextColor="#999"
+                        />
+                        
+                        <TextInput 
+                            style={styles.textInput} 
+                            placeholder="Categoría*" 
+                            value={form.categoria_producto} 
+                            onChangeText={text => setForm({ ...form, categoria_producto: text })}
+                            placeholderTextColor="#999"
+                        />
+
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity 
+                                style={styles.primaryButton} 
+                                onPress={agregarOActualizarProducto}
+                            >
+                                <Text style={styles.primaryButtonText}>
+                                    {form.id_producto ? "Actualizar" : "Agregar"}
+                                </Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={styles.secondaryButton} 
+                                onPress={limpiarFormulario}
+                            >
+                                <Text style={styles.secondaryButtonText}>Limpiar</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </ScrollView>
-
-                {/* Formulario de registro de productos */}
-                <View style={styles.View_add_producto}>
-                    <Text style={styles.titulo}>Agregar un producto</Text>
-
-                    <TextInput style={styles.textInput} placeholder="Nombre del producto" />
-                    <TextInput style={styles.textInput} placeholder="Cantidad" keyboardType="numeric" />
-                    <TextInput style={styles.textInput} placeholder="Precio" keyboardType="numeric" />
-                    <TextInput style={styles.textInput} placeholder="Talla" />
-                    <TextInput style={styles.textInput} placeholder="Categoría" />
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+            </SafeAreaView>
+        </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 10,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f8f9fa'
     },
-    title: {
-        fontSize: 30,
-        textAlign: "center",
-        marginTop: "10%",
-        marginBottom: 20,
+    
+    scrollView: {
+        flex: 1,
+        paddingHorizontal: 16
+    },
+
+    title: { 
+        fontSize: 28, 
+        textAlign: "center", 
+        marginVertical: 20, 
         fontWeight: 'bold',
+        color: '#2c3e50'
     },
-    View_add_producto: {
-        alignItems: 'center',
+
+    productsList: {
+        marginBottom: 20
     },
-    titulo: {
-        fontSize: 25,
-        padding: 20,
-        textAlign: 'center',
-    },
-    tableContainer: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 5,
-        overflow: 'hidden',
+
+    card: {
         backgroundColor: '#fff',
-        marginHorizontal: 10,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3
     },
-    headerRow: {
+
+    cardHeader: {
         flexDirection: 'row',
-        backgroundColor: '#f0f0f0',
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-        padding: 10,
-        minWidth: 600, // Para permitir el scroll horizontal
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12
     },
-    headerCell: {
+
+    productName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2c3e50',
         flex: 1,
+        marginRight: 10
+    },
+
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 8
+    },
+
+    editButton: {
+        backgroundColor: '#3498db',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6
+    },
+
+    editButtonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600'
+    },
+
+    deleteButton: {
+        backgroundColor: '#e74c3c',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6
+    },
+
+    deleteButtonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600'
+    },
+
+    cardContent: {
+        gap: 8
+    },
+
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+
+    label: {
+        fontSize: 14,
+        color: '#7f8c8d',
+        fontWeight: '500'
+    },
+
+    value: {
+        fontSize: 14,
+        color: '#2c3e50',
+        fontWeight: '600'
+    },
+
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 40
+    },
+
+    emptyStateText: {
+        fontSize: 16,
+        color: '#7f8c8d',
+        textAlign: 'center'
+    },
+
+    formContainer: { 
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3
+    },
+
+    formTitle: { 
+        fontSize: 20, 
         fontWeight: 'bold',
         textAlign: 'center',
+        marginBottom: 20,
+        color: '#2c3e50'
     },
-    row: {
+
+    textInput: { 
+        borderWidth: 1, 
+        borderColor: '#ddd', 
+        borderRadius: 8, 
+        padding: 12, 
+        marginBottom: 16, 
+        fontSize: 16,
+        backgroundColor: '#f8f9fa',
+        color: '#2c3e50'
+    },
+
+    buttonContainer: {
         flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-        padding: 10,
-        minWidth: 600, // Mantiene alineación con el header
+        justifyContent: 'space-between',
+        gap: 12,
+        marginTop: 8
     },
-    cell: {
+
+    primaryButton: {
+        backgroundColor: '#27ae60',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
         flex: 1,
-        padding: 5,
+        alignItems: 'center'
     },
-    centeredCell: {
-        textAlign: 'center',
+
+    primaryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600'
     },
-    textInput: {
-        borderWidth: 1,
-        borderColor: 'gray',
-        borderRadius: 10,
-        padding: 10,
-        width: '80%',
-        marginTop: 15,
-        height: 50,
+
+    secondaryButton: {
+        backgroundColor: '#95a5a6',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        flex: 1,
+        alignItems: 'center'
     },
+
+    secondaryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600'
+    }
 });
 
 export default Inventario;
